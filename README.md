@@ -128,6 +128,7 @@ kdm-cinema-simulator/
 
 ## License
 
-Released under the MIT License. Add a `LICENSE` file to the repository (on GitHub: **Add file → Create new file**, name it `LICENSE`, and choose the MIT template).
+Released under the MIT License.
+Copying and Reusing is Strictly Warned and will be blocked in usuage.
 
 Built by Aravindh D.
