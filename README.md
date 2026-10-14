@@ -63,13 +63,6 @@ The app has three tabs, one for each side of the workflow:
 
 That's it. Nothing to build.
 
-### Host it on GitHub Pages
-
-1. Make sure the main file is named `index.html`.
-2. Go to **Settings → Pages**.
-3. Under **Build and deployment**, choose **Deploy from a branch**, select `main` and `/ (root)`, then save.
-4. Your site will appear at `https://YOUR-USERNAME.github.io/kdm-cinema-simulator/`.
-
 ## Walkthrough
 
 1. **Theatre tab:** click **Create certificate**.
