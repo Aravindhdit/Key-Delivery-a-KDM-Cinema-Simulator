@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Key Delivery — a KDM cinema simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;700&family=Limelight&display=swap" rel="stylesheet">
+<style>
+:root{
+  --aisle:#231b2d; --aisle-2:#2d2339; --aisle-3:#3b2e4b;
+  --velvet:#7a1427; --velvet-d:#4d0b19; --velvet-h:#9c2238;
+  --brass:#d0a553; --brass-d:rgba(208,165,83,.35);
+  --beam:#fbefd0; --muted:#bdb2c4;
+  --ok:#7fd1a0; --bad:#ff8577; --warn:#f0c75e;
+  --display:'Limelight','Playfair Display',Georgia,serif;
+  --body:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:ui-monospace,'Cascadia Code',Consolas,Menlo,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{color-scheme:dark}
+body{
+  margin:0;min-height:100vh;color:var(--beam);font:16px/1.55 var(--body);
+  background:radial-gradient(900px 520px at 50% -12%,rgba(251,239,208,.11),transparent 70%),var(--aisle);
+}
+.wrap{max-width:1080px;margin:0 auto;padding:44px 20px 90px}
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0}
+h1{font-size:clamp(2.5rem,7vw,4.4rem);line-height:1.02;letter-spacing:.01em}
+h2{font-size:1.4rem;margin-bottom:4px}
+.intro{max-width:58ch;color:var(--muted);margin:14px 0 0;font-size:1.05rem}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+/* stations */
+.stations{display:grid;grid-template-columns:repeat(3,1fr);margin:34px 0 26px;border-bottom:1px solid var(--brass-d)}
+.stations button{
+  background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;color:var(--muted);
+  font:inherit;text-align:left;padding:14px 16px 12px;cursor:pointer;
+  display:grid;grid-template-columns:auto 1fr;column-gap:14px;align-items:center;
+}
+.stations .n{grid-row:span 2;font-family:var(--display);font-size:2rem;color:var(--brass);line-height:1}
+.stations .t{font-weight:700;color:var(--beam)}
+.stations .s{font-size:.85rem}
+.stations button[aria-selected="true"]{border-bottom-color:var(--brass);background:linear-gradient(to top,rgba(208,165,83,.12),transparent)}
+.stations button:hover{background:rgba(208,165,83,.07)}
+
+/* cards & forms */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+.two+.card,.card+.card,.stage+.two{margin-top:22px}
+.card{background:var(--aisle-2);border:1px solid var(--brass-d);border-radius:6px;padding:24px}
+.lede{color:var(--muted);margin:2px 0 18px;font-size:.95rem}
+.fine{color:var(--muted);font-size:.85rem;margin:16px 0 0}
+.empty{color:var(--muted);font-size:.92rem;margin:6px 0}
+.field{display:block;margin-bottom:14px}
+.field>span{display:block;font-size:.88rem;font-weight:500;margin-bottom:5px;color:var(--beam)}
+input,select{
+  width:100%;background:var(--aisle);color:var(--beam);border:1px solid rgba(251,239,208,.22);
+  border-radius:6px;padding:9px 11px;font:inherit;
+}
+input:focus,select:focus{border-color:var(--brass)}
+input[type=file]{padding:7px}
+input[type=file]::file-selector-button{
+  background:var(--aisle-3);color:var(--beam);border:1px solid var(--brass-d);border-radius:999px;
+  padding:6px 14px;margin-right:12px;font:inherit;font-size:.9rem;cursor:pointer;
+}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{
+  border:1px solid var(--brass);background:transparent;color:var(--brass);border-radius:999px;
+  padding:10px 20px;font:700 .95rem var(--body);cursor:pointer;
+}
+.btn:hover:not(:disabled){background:rgba(208,165,83,.14)}
+.btn.primary{background:var(--brass);color:#2a1d05}
+.btn.primary:hover:not(:disabled){background:#e2b966}
+.btn.small{padding:5px 13px;font-size:.85rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 16px}
+.chips .btn{border-style:dashed;color:var(--beam);border-color:var(--brass-d)}
+.chips .lbl{font-size:.82rem;color:var(--muted);align-self:center;margin-right:2px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:5px 16px;margin:6px 0 16px}
+.kv dt{color:var(--muted);font-size:.88rem}
+.kv dd{margin:0;word-break:break-word}
+.mono{font-family:var(--mono);font-size:.85rem}
+.dim{color:var(--muted)}
+progress{width:100%;height:10px;margin-top:14px;accent-color:var(--brass)}
+.msg{margin:14px 0 0;padding:10px 12px;border-left:3px solid var(--bad);background:rgba(255,133,119,.1);color:#ffd9d3;font-size:.92rem;border-radius:0 6px 6px 0}
+.banner{margin:18px 0 0;padding:10px 14px;border:1px solid var(--warn);color:var(--warn);border-radius:6px;font-size:.92rem}
+.trusted{list-style:none;margin:8px 0 0;padding:0}
+.trusted li{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid rgba(251,239,208,.1)}
+.trusted .who{font-weight:700;flex:1}
+
+/* KDM output */
+pre.xml{
+  margin:14px 0;padding:16px;background:#1a1323;border:1px solid var(--brass-d);border-radius:6px;
+  font:.8rem/1.55 var(--mono);color:#eadfc4;white-space:pre-wrap;overflow-wrap:anywhere;max-height:440px;overflow:auto;
+}
+
+/* the screening room */
+.stage{
+  position:relative;aspect-ratio:16/9;background:#000;border:1px solid var(--brass);border-radius:4px;overflow:hidden;
+  box-shadow:0 0 0 8px #181021,0 0 0 9px var(--brass-d),0 30px 70px rgba(0,0,0,.55);
+  transition:box-shadow 1.8s ease;
+}
+.stage.open{box-shadow:0 0 0 8px #181021,0 0 0 9px var(--brass-d),0 0 130px rgba(251,239,208,.22)}
+.stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+.curtain{
+  position:absolute;top:0;bottom:0;width:50.5%;z-index:2;
+  transition:transform 1.9s cubic-bezier(.65,0,.25,1);
+  background:
+    linear-gradient(to bottom,rgba(0,0,0,.4),transparent 28%),
+    repeating-linear-gradient(90deg,var(--velvet-d) 0,var(--velvet) 22px,var(--velvet-h) 34px,var(--velvet) 46px,var(--velvet-d) 64px);
+}
+.curtain.l{left:0;box-shadow:inset -16px 0 26px rgba(0,0,0,.5)}
+.curtain.r{right:0;box-shadow:inset 16px 0 26px rgba(0,0,0,.5)}
+.stage.open .curtain.l{transform:translateX(-103%)}
+.stage.open .curtain.r{transform:translateX(103%)}
+.plaque{
+  position:absolute;z-index:4;left:50%;top:50%;transform:translate(-50%,-50%);width:min(86%,420px);text-align:center;
+  background:rgba(24,16,33,.9);border:1px solid var(--brass);border-radius:4px;padding:16px 24px;transition:opacity .6s;
+}
+.plaque h3{color:var(--brass);font-size:1.5rem}
+.plaque p{margin:6px 0 0;color:var(--muted);font-size:.92rem}
+.stage.open .plaque{opacity:0;pointer-events:none}
+
+/* checks */
+.checks{list-style:none;margin:6px 0 0;padding:0}
+.check{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:11px 2px;border-top:1px solid rgba(251,239,208,.1)}
+.check:first-child{border-top:0}
+.mark{width:22px;height:22px;margin-top:1px;border-radius:50%;display:grid;place-items:center;font-size:.78rem;font-weight:800;border:2px solid var(--muted)}
+.is-pending .mark{border-color:var(--brass);border-top-color:transparent;animation:spin .8s linear infinite}
+.is-ok .mark{background:var(--ok);border-color:var(--ok);color:#10281a}
+.is-ok .mark::before{content:"\2713"}
+.is-fail .mark{background:var(--bad);border-color:var(--bad);color:#3a0f09}
+.is-fail .mark::before{content:"\2715"}
+.is-warn .mark{background:var(--warn);border-color:var(--warn);color:#33270a}
+.is-warn .mark::before{content:"!"}
+.check .body strong{display:block}
+.detail{display:block;color:var(--muted);font-size:.9rem;overflow-wrap:anywhere}
+.is-fail .detail{color:#ffd2cb}
+.check .btn{margin-top:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+details.notes{margin-top:34px;border:1px solid var(--brass-d);border-radius:6px;padding:4px 22px;background:rgba(45,35,57,.55)}
+details.notes summary{cursor:pointer;padding:14px 0;font-weight:700}
+details.notes table{border-collapse:collapse;width:100%;margin:6px 0 14px;font-size:.92rem}
+details.notes th,details.notes td{text-align:left;padding:8px 10px;border-top:1px solid rgba(251,239,208,.12);vertical-align:top}
+details.notes th{color:var(--brass);font-weight:700}
+details.notes p,details.notes li{color:var(--muted);font-size:.92rem}
+details.notes ul{padding-left:20px}
+
+@media (max-width:820px){
+  .two{grid-template-columns:1fr}
+  .stations .s{display:none}
+  .stations button{padding:12px 10px}
+}
+@media (max-width:520px){.grid2{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){
+  .curtain,.stage,.plaque{transition:none}
+  .is-pending .mark{animation:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Key Delivery</h1>
+    <p class="intro">Lock a film, send a key, open the curtains. Pack a movie as a studio, issue a KDM for one screen, then watch it unlock — all inside this page.</p>
+  </header>
+
+  <div id="banner" class="banner" role="status" hidden></div>
+
+  <nav class="stations" role="tablist" aria-label="Stations">
+    <button role="tab" id="tab-theatre" data-tab="theatre" aria-selected="true" aria-controls="p-theatre"><span class="n">1</span><span class="t">Theatre</span><span class="s" id="st-theatre">No certificate yet</span></button>
+    <button role="tab" id="tab-studio" data-tab="studio" aria-selected="false" aria-controls="p-studio" tabindex="-1"><span class="n">2</span><span class="t">Studio</span><span class="s" id="st-studio">Nothing packed yet</span></button>
+    <button role="tab" id="tab-screen" data-tab="screen" aria-selected="false" aria-controls="p-screen" tabindex="-1"><span class="n">3</span><span class="t">Screening room</span><span class="s" id="st-screen">Curtains closed</span></button>
+  </nav>
+
+  <main>
+
+    <!-- STATION 1 — THEATRE -->
+    <section id="p-theatre" role="tabpanel" aria-labelledby="tab-theatre">
+      <div class="two">
+        <div class="card">
+          <h2>Screen certificate</h2>
+          <p class="lede">Every screen has its own identity. Studios lock films to it, so only this screen can open them.</p>
+          <div id="certForm">
+            <label class="field"><span>Screen name</span><input id="screenName" value="Screen 1" maxlength="40"></label>
+            <button class="btn primary" id="mkCert">Create certificate</button>
+          </div>
+          <div id="certInfo" hidden>
+            <dl class="kv">
+              <dt>Screen</dt><dd id="ciName"></dd>
+              <dt>Thumbprint</dt><dd class="mono" id="ciThumb"></dd>
+              <dt>Created</dt><dd id="ciDate"></dd>
+            </dl>
+            <div class="row">
+              <button class="btn primary" id="dlCert">Download certificate</button>
+              <button class="btn" id="resetCert">Replace</button>
+            </div>
+          </div>
+          <p class="fine">The private key stays inside this browser and can’t be exported, like the secured hardware in a real cinema server. The certificate file holds only the public half, so it’s safe to send to a studio.</p>
+        </div>
+        <div class="card">
+          <h2>Trusted studios</h2>
+          <p class="lede">A theatre only accepts keys from studios it trusts.</p>
+          <p id="trustedEmpty" class="empty">None yet. You’ll be asked the first time a KDM arrives from a new studio.</p>
+          <ul id="trustedList" class="trusted"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATION 2 — STUDIO -->
+    <section id="p-studio" role="tabpanel" aria-labelledby="tab-studio" hidden>
+      <div class="two">
+        <div class="card">
+          <h2>Pack a movie</h2>
+          <p class="lede">Encrypts the film into a package. Without a KDM, the package is unwatchable noise.</p>
+          <label class="field"><span>Movie file (MP4 or WebM)</span><input type="file" id="packFile" accept="video/*"></label>
+          <label class="field"><span>Title</span><input id="packTitle" maxlength="80" placeholder="Taken from the file name"></label>
+          <button class="btn primary" id="packBtn" disabled>Encrypt movie</button>
+          <progress id="packProg" max="1" value="0" hidden aria-label="Encryption progress"></progress>
+          <p id="packMsg" class="msg" role="alert" hidden></p>
+          <div id="packDone" hidden>
+            <dl class="kv">
+              <dt>Title</dt><dd id="pdTitle"></dd>
+              <dt>Size</dt><dd id="pdSize"></dd>
+              <dt>Composition ID</dt><dd class="mono" id="pdCpl"></dd>
+            </dl>
+            <button class="btn primary" id="dlPack">Download package</button>
+            <p class="fine">The studio keeps the content key in this browser. Works best with clips under about 500 MB.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Issue a KDM</h2>
+          <p class="lede">Locks the film’s key to one screen, for a set time window.</p>
+          <label class="field"><span>Movie</span><select id="kdmMovie" disabled><option>Pack a movie first</option></select></label>
+          <label class="field"><span>Studio name</span><input id="studioName" value="My Studio" maxlength="40"></label>
+          <div class="field">
+            <span style="display:block;font-size:.88rem;font-weight:500;margin-bottom:5px">Theatre certificate</span>
+            <input type="file" id="certFile" accept=".json,application/json" aria-label="Theatre certificate file">
+            <div class="row" style="margin-top:8px">
+              <button class="btn small" id="useLocalCert">Use this browser’s screen</button>
+              <span id="certStatus" class="dim" style="font-size:.88rem">No certificate loaded yet.</span>
+            </div>
+          </div>
+          <div class="grid2">
+            <label class="field"><span>Valid from</span><input type="datetime-local" id="nb"></label>
+            <label class="field"><span>Valid until</span><input type="datetime-local" id="na"></label>
+          </div>
+          <div class="chips" id="chips">
+            <span class="lbl">Quick windows</span>
+            <button class="btn small" data-win="1h">1 hour</button>
+            <button class="btn small" data-win="24h">24 hours</button>
+            <button class="btn small" data-win="7d">7 days</button>
+          </div>
+          <div class="chips">
+            <span class="lbl">Try a failure</span>
+            <button class="btn small" data-win="expired">Already expired</button>
+            <button class="btn small" data-win="future">Starts tomorrow</button>
+          </div>
+          <button class="btn primary" id="issueBtn">Issue KDM</button>
+          <p id="kdmMsg" class="msg" role="alert" hidden></p>
+        </div>
+      </div>
+
+      <div class="card" id="kdmResult" hidden>
+        <h2>Your KDM</h2>
+        <p class="lede" id="kdmSummary"></p>
+        <pre class="xml" id="kdmOut" tabindex="0" aria-label="KDM XML"></pre>
+        <div class="row">
+          <button class="btn primary" id="dlKdm">Download KDM</button>
+          <button class="btn" id="copyKdm">Copy XML</button>
+        </div>
+        <p class="fine">Try it: open the downloaded file in a text editor, change the end date, and load it in the screening room. The studio’s signature will no longer match.</p>
+      </div>
+    </section>
+
+    <!-- STATION 3 — SCREENING ROOM -->
+    <section id="p-screen" role="tabpanel" aria-labelledby="tab-screen" hidden>
+      <div class="stage" id="stage">
+        <video id="film" controls controlsList="nodownload noplaybackrate" disablepictureinpicture playsinline></video>
+        <div class="curtain l"></div>
+        <div class="curtain r"></div>
+        <div class="plaque"><h3 id="plqT">Curtains closed</h3><p id="plqP">Load a movie package and a KDM below, then start the screening.</p></div>
+      </div>
+
+      <div class="two">
+        <div class="card">
+          <h2>Projection booth</h2>
+          <p class="lede">Feed the server the package and the KDM it received.</p>
+          <label class="field"><span>Movie package (.kdmsim)</span><input type="file" id="movieFile" accept=".kdmsim"></label>
+          <label class="field"><span>KDM (.xml)</span><input type="file" id="kdmFile" accept=".xml,text/xml,application/xml"></label>
+          <div class="row">
+            <button class="btn primary" id="startBtn">Start screening</button>
+            <button class="btn" id="lockBtn" disabled>Stop and lock</button>
+          </div>
+          <p class="fine">Server time <span class="clock mono"></span>. The key is only released inside its validity window, and is purged when the window ends.</p>
+          <p id="screenMsg" class="msg" role="alert" hidden></p>
+        </div>
+        <div class="card">
+          <h2>Pre-show checks</h2>
+          <p id="checksEmpty" class="empty">Checks appear here when you start a screening.</p>
+          <ol id="checks" class="checks" aria-live="polite"></ol>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <details class="notes">
+    <summary>How this maps to a real cinema</summary>
+    <table>
+      <thead><tr><th>In this page</th><th>In a real digital cinema</th></tr></thead>
+      <tbody>
+        <tr><td>Movie package (.kdmsim)</td><td>The DCP: picture and sound files, encrypted with AES-128</td></tr>
+        <tr><td>Screen certificate</td><td>The public certificate of the cinema server’s media block</td></tr>
+        <tr><td>KDM (.xml)</td><td>SMPTE KDM: the content key, encrypted with the server’s public key (RSA-OAEP) and signed by the studio</td></tr>
+        <tr><td>Valid from / until</td><td>ContentKeysNotValidBefore / ContentKeysNotValidAfter</td></tr>
+        <tr><td>Stop and lock</td><td>The server purging the key when the window closes</td></tr>
+      </tbody>
+    </table>
+    <p>What’s simplified here, honestly:</p>
+    <ul>
+      <li>No certificate authority chain. The theatre uses a trusted-studios list instead.</li>
+      <li>The film is encrypted with AES-128-GCM in 1 MB blocks, not AES-CBC inside MXF files.</li>
+      <li>One content key for the whole film, and a simplified XML signature instead of full XMLDSig.</li>
+      <li>This is a teaching tool, not copy protection. Once a film is decrypted in your browser’s memory, a determined person could capture it.</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+'use strict';
+
+// <core>
+const enc = new TextEncoder(), dec = new TextDecoder();
+const MAGIC = 'KDMSIM01';
+const CHUNK = 1024 * 1024;
+
+const b64 = {
+  to(buf){
+    const u = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    let s = '';
+    for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+    return btoa(s);
+  },
+  from(str){
+    const s = atob(str), u = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+    return u;
+  }
+};
+const hex = {
+  to(buf){ return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join(''); },
+  from(h){ const u = new Uint8Array(h.length / 2); for (let i = 0; i < u.length; i++) u[i] = parseInt(h.substr(i * 2, 2), 16); return u; }
+};
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const isoS = d => new Date(Math.floor(d.getTime() / 1000) * 1000).toISOString().replace('.000Z', 'Z');
+
+/* ---------- identities ---------- */
+async function makeTheatreIdentity(name){
+  const kp = await crypto.subtle.generateKey(
+    { name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    false, ['encrypt', 'decrypt']);
+  const spki = await crypto.subtle.exportKey('spki', kp.publicKey);
+  return { name, privateKey: kp.privateKey, publicKey: kp.publicKey, spki: b64.to(spki),
+           thumb: hex.to(await crypto.subtle.digest('SHA-256', spki)), created: new Date().toISOString() };
+}
+async function makeStudioIdentity(name){
+  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+  const spki = await crypto.subtle.exportKey('spki', kp.publicKey);
+  return { name, privateKey: kp.privateKey, publicKey: kp.publicKey, spki: b64.to(spki),
+           thumb: hex.to(await crypto.subtle.digest('SHA-256', spki)), created: new Date().toISOString() };
+}
+function certJson(t){
+  return JSON.stringify({ type: 'KDMSIM-Certificate', version: 1, subject: t.name, thumbprint: t.thumb,
+    publicKey: t.spki, algorithm: 'RSA-OAEP-2048/SHA-256', created: t.created }, null, 2);
+}
+async function parseCert(text){
+  let o; try { o = JSON.parse(text); } catch (e) { throw new Error('That file is not a certificate (could not read it as JSON).'); }
+  if (!o || o.type !== 'KDMSIM-Certificate' || !o.publicKey) throw new Error('That file is not a screen certificate.');
+  const spki = b64.from(o.publicKey);
+  const thumb = hex.to(await crypto.subtle.digest('SHA-256', spki));
+  if (thumb !== o.thumbprint) throw new Error('The certificate’s thumbprint does not match its key. The file was changed.');
+  const publicKey = await crypto.subtle.importKey('spki', spki, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']);
+  return { name: String(o.subject || 'Unnamed screen'), thumb, publicKey };
+}
+
+/* ---------- movie package ---------- */
+const chunkIv = (nonce, i) => { const iv = new Uint8Array(12); iv.set(nonce, 0); new DataView(iv.buffer).setUint32(8, i, false); return iv; };
+
+async function packMovie(file, title, onProgress){
+  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 128 }, true, ['encrypt', 'decrypt']);
+  const rawKey = new Uint8Array(await crypto.subtle.exportKey('raw', key));
+  const nonce = crypto.getRandomValues(new Uint8Array(8));
+  const chunks = Math.max(1, Math.ceil(file.size / CHUNK));
+  const header = {
+    format: MAGIC, cipher: 'AES-128-GCM', title,
+    cplId: 'urn:uuid:' + crypto.randomUUID(), keyId: 'urn:uuid:' + crypto.randomUUID(),
+    mime: file.type || 'video/mp4', size: file.size, chunkSize: CHUNK, chunks,
+    nonce: b64.to(nonce), created: new Date().toISOString()
+  };
+  const hb = enc.encode(JSON.stringify(header));
+  const lenBytes = new Uint8Array(4); new DataView(lenBytes.buffer).setUint32(0, hb.length, false);
+  const parts = [enc.encode(MAGIC), lenBytes, hb];
+  for (let i = 0; i < chunks; i++) {
+    const plain = await file.slice(i * CHUNK, (i + 1) * CHUNK).arrayBuffer();
+    parts.push(new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: chunkIv(nonce, i) }, key, plain)));
+    if (onProgress) onProgress((i + 1) / chunks);
+  }
+  return { blob: new Blob(parts, { type: 'application/octet-stream' }), header, rawKey };
+}
+
+function validateHeader(h){
+  const bad = () => new Error('The movie package header is damaged.');
+  if (!h || h.format !== MAGIC || !h.cplId || !h.keyId || !h.nonce) throw bad();
+  if (!(h.size >= 0) || !(h.chunkSize > 0 && h.chunkSize <= 16 * 1024 * 1024)) throw bad();
+  if (h.chunks !== Math.max(1, Math.ceil(h.size / h.chunkSize))) throw bad();
+}
+async function readHeader(file){
+  const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  if (head.length < 12 || dec.decode(head.subarray(0, 8)) !== MAGIC) throw new Error('That is not a movie package made by this studio tool.');
+  const n = new DataView(head.buffer, 8, 4).getUint32(0, false);
+  if (n > 1e6) throw new Error('The movie package header is damaged.');
+  const hb = new Uint8Array(await file.slice(12, 12 + n).arrayBuffer());
+  let header; try { header = JSON.parse(dec.decode(hb)); } catch (e) { throw new Error('The movie package header is damaged.'); }
+  validateHeader(header);
+  return { header, dataOffset: 12 + n };
+}
+async function unpackMovie(file, header, dataOffset, rawKey, onProgress){
+  const key = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']);
+  const nonce = b64.from(header.nonce);
+  const parts = []; let pos = dataOffset;
+  for (let i = 0; i < header.chunks; i++) {
+    const plainLen = Math.min(header.chunkSize, header.size - i * header.chunkSize);
+    const encLen = plainLen + 16;
+    const ct = await file.slice(pos, pos + encLen).arrayBuffer(); pos += encLen;
+    if (ct.byteLength !== encLen) throw new Error('The movie package is truncated.');
+    try { parts.push(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: chunkIv(nonce, i) }, key, ct)); }
+    catch (e) { throw new Error('Block ' + (i + 1) + ' failed to decrypt. The key is wrong or the package was damaged.'); }
+    if (onProgress) onProgress((i + 1) / header.chunks);
+  }
+  return new Blob(parts, { type: header.mime });
+}
+
+/* ---------- the KDM ---------- */
+function canonical(f){
+  return ['KDMSIM-v1', f.messageId, f.annotation, f.issueDate, f.signerName, f.signerSpki, f.recipientName,
+          f.recipientThumb, f.title, f.cplId, f.keyId, f.notBefore, f.notAfter, f.wrappedKey].join('\n');
+}
+function kdmXml(f, sig, signerThumb){
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!-- Teaching version of a Key Delivery Message. Real KDMs follow SMPTE 430-1 and use X.509 certificates. -->
+<DCinemaSecurityMessage>
+  <AuthenticatedPublic>
+    <MessageId>${esc(f.messageId)}</MessageId>
+    <MessageType>kdm-key-delivery</MessageType>
+    <AnnotationText>${esc(f.annotation)}</AnnotationText>
+    <IssueDate>${f.issueDate}</IssueDate>
+    <Signer>
+      <SubjectName>${esc(f.signerName)}</SubjectName>
+      <Thumbprint>${signerThumb}</Thumbprint>
+      <PublicKey>${f.signerSpki}</PublicKey>
+    </Signer>
+    <Recipient>
+      <!-- Only the screen holding the matching private key can open this message -->
+      <SubjectName>${esc(f.recipientName)}</SubjectName>
+      <DeviceThumbprint>${f.recipientThumb}</DeviceThumbprint>
+    </Recipient>
+    <ContentTitleText>${esc(f.title)}</ContentTitleText>
+    <CompositionPlaylistId>${f.cplId}</CompositionPlaylistId>
+    <ContentKeysNotValidBefore>${f.notBefore}</ContentKeysNotValidBefore>
+    <ContentKeysNotValidAfter>${f.notAfter}</ContentKeysNotValidAfter>
+    <KeyIdList>
+      <KeyId>${f.keyId}</KeyId>
+    </KeyIdList>
+  </AuthenticatedPublic>
+  <AuthenticatedPrivate>
+    <!-- The film's content key, locked with the screen's public key (RSA-OAEP) -->
+    <EncryptedKey>
+      <EncryptionMethod Algorithm="RSA-OAEP-SHA256"/>
+      <CipherValue>${f.wrappedKey}</CipherValue>
+    </EncryptedKey>
+  </AuthenticatedPrivate>
+  <Signature>
+    <!-- The studio's signature over everything above. Change one character and it fails. -->
+    <SignatureMethod Algorithm="ECDSA-P256-SHA256"/>
+    <SignatureValue>${sig}</SignatureValue>
+  </Signature>
+</DCinemaSecurityMessage>
+`;
+}
+async function issueKdm({ movie, cert, studio, notBefore, notAfter }){
+  const block = ['KDMSIM1', movie.cplId, movie.keyHex,
+                 Math.floor(notBefore.getTime() / 1000), Math.floor(notAfter.getTime() / 1000)].join('|');
+  const wrappedKey = b64.to(await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, cert.publicKey, enc.encode(block)));
+  const f = {
+    messageId: 'urn:uuid:' + crypto.randomUUID(), annotation: movie.title + ' for ' + cert.name,
+    issueDate: isoS(new Date()), signerName: studio.name, signerSpki: studio.spki,
+    recipientName: cert.name, recipientThumb: cert.thumb, title: movie.title,
+    cplId: movie.cplId, keyId: movie.keyId, notBefore: isoS(notBefore), notAfter: isoS(notAfter), wrappedKey
+  };
+  const sig = b64.to(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, studio.privateKey, enc.encode(canonical(f))));
+  return { xml: kdmXml(f, sig, studio.thumb), fields: f };
+}
+function parseKdm(text){
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  const root = doc.documentElement;
+  if (!root || doc.getElementsByTagName('parsererror').length || root.nodeName !== 'DCinemaSecurityMessage')
+    throw new Error('That file is not a KDM. It needs to be valid XML with a DCinemaSecurityMessage at the top.');
+  const get = (parent, tag, clean) => {
+    const el = parent && parent.getElementsByTagName(tag)[0];
+    if (!el) throw new Error('The KDM is missing its <' + tag + '> field.');
+    const t = el.textContent.trim();
+    return clean ? t.replace(/\s+/g, '') : t;
+  };
+  const signer = root.getElementsByTagName('Signer')[0], recip = root.getElementsByTagName('Recipient')[0];
+  return {
+    messageId: get(root, 'MessageId'), annotation: get(root, 'AnnotationText'), issueDate: get(root, 'IssueDate'),
+    signerName: get(signer, 'SubjectName'), signerSpki: get(signer, 'PublicKey', true),
+    recipientName: get(recip, 'SubjectName'), recipientThumb: get(recip, 'DeviceThumbprint'),
+    title: get(root, 'ContentTitleText'), cplId: get(root, 'CompositionPlaylistId'), keyId: get(root, 'KeyId'),
+    notBefore: get(root, 'ContentKeysNotValidBefore'), notAfter: get(root, 'ContentKeysNotValidAfter'),
+    wrappedKey: get(root, 'CipherValue', true), signature: get(root, 'SignatureValue', true)
+  };
+}
+async function verifyKdm(k){
+  try {
+    const spki = b64.from(k.signerSpki);
+    const pub = await crypto.subtle.importKey('spki', spki, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pub, b64.from(k.signature), enc.encode(canonical(k)));
+    return { ok, thumb: hex.to(await crypto.subtle.digest('SHA-256', spki)) };
+  } catch (e) { return { ok: false, thumb: '' }; }
+}
+async function unwrapKey(k, privateKey){
+  let pt;
+  try { pt = await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, privateKey, b64.from(k.wrappedKey)); }
+  catch (e) { throw new Error('This screen’s private key could not open the lock on the content key.'); }
+  const [tag, cpl, keyHex, nb, na] = dec.decode(pt).split('|');
+  if (tag !== 'KDMSIM1' || cpl !== k.cplId || !/^[0-9a-f]{32}$/.test(keyHex || '') ||
+      +nb !== Math.floor(Date.parse(k.notBefore) / 1000) || +na !== Math.floor(Date.parse(k.notAfter) / 1000))
+    throw new Error('The key block inside the KDM does not match the message around it.');
+  return hex.from(keyHex);
+}
+// </core>
+
+/* ================= storage (IndexedDB, falls back to memory) ================= */
+const store = (() => {
+  let dbp = null, persistent = true; const mem = new Map();
+  const open = () => dbp || (dbp = new Promise((res, rej) => {
+    try {
+      const r = indexedDB.open('kdm-cinema', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    } catch (e) { rej(e); }
+  }));
+  const tx = async (mode, fn) => {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('kv', mode), rq = fn(t.objectStore('kv'));
+      t.oncomplete = () => res(rq && rq.result);
+      t.onerror = t.onabort = () => rej(t.error);
+    });
+  };
+  return {
+    async get(k){ if (mem.has(k)) return mem.get(k); try { return await tx('readonly', s => s.get(k)); } catch (e) { persistent = false; return undefined; } },
+    async set(k, v){ try { await tx('readwrite', s => s.put(v, k)); mem.delete(k); } catch (e) { persistent = false; mem.set(k, v); } },
+    async del(k){ mem.delete(k); try { await tx('readwrite', s => s.delete(k)); } catch (e) { persistent = false; } },
+    get persistent(){ return persistent; }
+  };
+})();
+
+/* ================= small helpers ================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const fmtBytes = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : n < 1073741824 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1073741824).toFixed(2) + ' GB';
+const groupHex = h => (h.match(/.{1,4}/g) || []).join(' ');
+const slug = s => s.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') || 'file';
+const fmtDate = iso => new Date(iso).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const pad = n => String(n).padStart(2, '0');
+const toLocalInput = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function showMsg(sel, text){ const el = $(sel); el.textContent = text || ''; el.hidden = !text; }
+function download(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+}
+async function busy(btn, label, fn){
+  const old = btn.textContent; btn.disabled = true; btn.textContent = label;
+  try { return await fn(); } finally { btn.disabled = false; btn.textContent = old; }
+}
+
+/* ================= tabs ================= */
+function selectTab(id){
+  $$('.stations button').forEach(b => { const on = b.dataset.tab === id; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; });
+  $$('main > section').forEach(s => s.hidden = s.id !== 'p-' + id);
+}
+$$('.stations button').forEach((b, i, all) => {
+  b.addEventListener('click', () => selectTab(b.dataset.tab));
+  b.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const next = all[(i + (e.key === 'ArrowRight' ? 1 : all.length - 1)) % all.length];
+    next.focus(); selectTab(next.dataset.tab);
+  });
+});
+
+/* ================= render from storage ================= */
+async function refreshAll(){
+  const [theatre, movies, trusted] = await Promise.all([store.get('theatre'), store.get('movies'), store.get('trusted')]);
+  const list = movies || [], tl = trusted || [];
+
+  $('#certForm').hidden = !!theatre; $('#certInfo').hidden = !theatre;
+  if (theatre) {
+    $('#ciName').textContent = theatre.name;
+    $('#ciThumb').textContent = groupHex(theatre.thumb.slice(0, 32));
+    $('#ciDate').textContent = fmtDate(theatre.created);
+  }
+  $('#st-theatre').textContent = theatre ? theatre.name + ' is ready' : 'No certificate yet';
+  $('#st-studio').textContent = list.length ? list.length + (list.length > 1 ? ' movies packed' : ' movie packed') : 'Nothing packed yet';
+
+  const sel = $('#kdmMovie'), keep = sel.value; sel.replaceChildren();
+  if (!list.length) { sel.append(new Option('Pack a movie first', '')); sel.disabled = true; }
+  else {
+    sel.disabled = false;
+    list.forEach(m => sel.append(new Option(`${m.title} (${fmtBytes(m.size)})`, m.cplId)));
+    if (list.some(m => m.cplId === keep)) sel.value = keep; else sel.value = list[list.length - 1].cplId;
+  }
+
+  const ul = $('#trustedList'); ul.replaceChildren(); $('#trustedEmpty').hidden = tl.length > 0;
+  tl.forEach(s => {
+    const li = document.createElement('li');
+    const who = document.createElement('span'); who.className = 'who'; who.textContent = s.name;
+    const th = document.createElement('span'); th.className = 'mono dim'; th.textContent = groupHex(s.thumb.slice(0, 8));
+    const rm = document.createElement('button'); rm.className = 'btn small'; rm.textContent = 'Remove';
+    rm.onclick = async () => { await store.set('trusted', ((await store.get('trusted')) || []).filter(x => x.thumb !== s.thumb)); refreshAll(); };
+    li.append(who, th, rm); ul.append(li);
+  });
+  $('#banner').hidden = store.persistent;
+  if (!store.persistent) $('#banner').textContent = 'This browser blocked storage for local files. Your keys will last until you close this tab. Try Chrome, Edge or Firefox for saved keys.';
+}
+
+/* ================= station 1: theatre ================= */
+$('#mkCert').onclick = e => busy(e.target, 'Creating…', async () => {
+  const t = await makeTheatreIdentity($('#screenName').value.trim() || 'Screen 1');
+  await store.set('theatre', t); await refreshAll();
+});
+$('#dlCert').onclick = async () => {
+  const t = await store.get('theatre'); if (!t) return;
+  download(new Blob([certJson(t)], { type: 'application/json' }), slug(t.name) + '-certificate.json');
+};
+$('#resetCert').onclick = async () => {
+  if (!confirm('Replace this certificate? KDMs issued for the old one will stop working on this screen.')) return;
+  await store.del('theatre'); await refreshAll();
+};
+
+/* ================= station 2: studio ================= */
+let lastPack = null, lastKdm = null, kdmCert = null;
+
+$('#packFile').onchange = e => {
+  const f = e.target.files[0]; $('#packBtn').disabled = !f;
+  if (f && !$('#packTitle').value) $('#packTitle').value = f.name.replace(/\.[^.]+$/, '');
+  showMsg('#packMsg', ''); $('#packDone').hidden = true;
+};
+$('#packBtn').onclick = e => busy(e.target, 'Encrypting…', async () => {
+  const f = $('#packFile').files[0]; if (!f) return;
+  showMsg('#packMsg', ''); $('#packDone').hidden = true;
+  if (f.size === 0) return showMsg('#packMsg', 'That file is empty.');
+  const title = $('#packTitle').value.trim() || f.name.replace(/\.[^.]+$/, '');
+  const prog = $('#packProg'); prog.value = 0; prog.hidden = false;
+  try {
+    const r = await packMovie(f, title, p => { prog.value = p; });
+    const movies = (await store.get('movies')) || [];
+    movies.push({ cplId: r.header.cplId, keyId: r.header.keyId, keyHex: hex.to(r.rawKey), title, size: f.size, created: r.header.created });
+    await store.set('movies', movies);
+    lastPack = { blob: r.blob, name: slug(title) + '.kdmsim' };
+    $('#pdTitle').textContent = title; $('#pdSize').textContent = fmtBytes(f.size); $('#pdCpl').textContent = r.header.cplId;
+    $('#packDone').hidden = false;
+    await refreshAll();
+  } catch (err) {
+    showMsg('#packMsg', 'Could not pack this movie: ' + (err && err.name === 'NotReadableError' ? 'the file could not be read.' : 'the browser ran out of memory. Try a smaller clip (under about 500 MB).'));
+  } finally { prog.hidden = true; }
+});
+$('#dlPack').onclick = () => lastPack && download(lastPack.blob, lastPack.name);
+
+function setKdmCert(c){
+  kdmCert = c;
+  $('#certStatus').textContent = c ? `Locked to ${c.name} · ${groupHex(c.thumb.slice(0, 16))}` : 'No certificate loaded yet.';
+}
+$('#certFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { setKdmCert(await parseCert(await f.text())); showMsg('#kdmMsg', ''); }
+  catch (err) { setKdmCert(null); showMsg('#kdmMsg', err.message); }
+};
+$('#useLocalCert').onclick = async () => {
+  const t = await store.get('theatre');
+  if (!t) return showMsg('#kdmMsg', 'This browser has no screen certificate yet. Create one in the Theatre tab.');
+  setKdmCert({ name: t.name, thumb: t.thumb, publicKey: t.publicKey }); showMsg('#kdmMsg', '');
+};
+
+function setWindow(kind){
+  const now = new Date(); now.setSeconds(0, 0);
+  const H = 3600e3, D = 24 * H;
+  const w = { '1h': [0, H], '24h': [0, D], '7d': [0, 7 * D], expired: [-2 * H, -H], future: [D, 2 * D] }[kind];
+  $('#nb').value = toLocalInput(new Date(now.getTime() + w[0]));
+  $('#na').value = toLocalInput(new Date(now.getTime() + w[1]));
+}
+$$('[data-win]').forEach(b => b.addEventListener('click', () => setWindow(b.dataset.win)));
+setWindow('24h');
+
+$('#issueBtn').onclick = e => busy(e.target, 'Issuing…', async () => {
+  showMsg('#kdmMsg', '');
+  const movies = (await store.get('movies')) || [];
+  const movie = movies.find(m => m.cplId === $('#kdmMovie').value);
+  if (!movie) return showMsg('#kdmMsg', 'Pack a movie first, then choose it here.');
+  if (!kdmCert) return showMsg('#kdmMsg', 'Load a theatre certificate. A KDM has to be locked to a specific screen.');
+  const nb = new Date($('#nb').value), na = new Date($('#na').value);
+  if (isNaN(nb) || isNaN(na)) return showMsg('#kdmMsg', 'Choose both a start and an end time.');
+  if (na <= nb) return showMsg('#kdmMsg', 'The end time must be after the start time.');
+  const name = $('#studioName').value.trim() || 'My Studio';
+  try {
+    let studio = await store.get('studio');
+    if (!studio) studio = await makeStudioIdentity(name);
+    studio.name = name; await store.set('studio', studio);
+    const { xml } = await issueKdm({ movie, cert: kdmCert, studio, notBefore: nb, notAfter: na });
+    lastKdm = { xml, name: `KDM_${slug(movie.title)}_${slug(kdmCert.name)}.xml` };
+    $('#kdmOut').textContent = xml;
+    $('#kdmSummary').textContent = `“${movie.title}” is locked to ${kdmCert.name}, from ${fmtDate(nb)} until ${fmtDate(na)} (your time).`;
+    $('#kdmResult').hidden = false;
+    $('#kdmResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (err) { showMsg('#kdmMsg', 'Could not issue the KDM: ' + err.message); }
+});
+$('#dlKdm').onclick = () => lastKdm && download(new Blob([lastKdm.xml], { type: 'application/xml' }), lastKdm.name);
+$('#copyKdm').onclick = async e => {
+  if (!lastKdm) return;
+  try { await navigator.clipboard.writeText(lastKdm.xml); e.target.textContent = 'Copied'; }
+  catch (err) { e.target.textContent = 'Select the text and copy it'; }
+  setTimeout(() => e.target.textContent = 'Copy XML', 1800);
+};
+
+/* ================= station 3: screening room ================= */
+const film = $('#film'), stage = $('#stage');
+let session = null, watchdog = null, running = false;
+
+function setPlaque(t, p){ $('#plqT').textContent = t; $('#plqP').textContent = p; }
+function addCheck(label){
+  $('#checksEmpty').hidden = true;
+  const li = document.createElement('li'); li.className = 'check is-pending';
+  li.innerHTML = '<span class="mark" aria-hidden="true"></span><div class="body"><strong></strong><span class="detail"></span></div>';
+  li.querySelector('strong').textContent = label;
+  $('#checks').append(li);
+  const detail = li.querySelector('.detail');
+  return {
+    el: li,
+    set: t => { detail.textContent = t; },
+    ok: t => { li.className = 'check is-ok'; if (t !== undefined) detail.textContent = t; },
+    fail: t => { li.className = 'check is-fail'; detail.textContent = t; }
+  };
+}
+async function runCheck(label, fn){
+  const c = addCheck(label);
+  try { c.ok(await fn(c)); return true; }
+  catch (err) {
+    c.fail(err.message || String(err));
+    if (err.action) {
+      const b = document.createElement('button'); b.className = 'btn small'; b.textContent = err.action.label;
+      b.onclick = () => { b.disabled = true; err.action.run(); };
+      c.el.querySelector('.body').append(b);
+    }
+    return false;
+  }
+}
+
+function lockScreen(msg){
+  clearInterval(watchdog); watchdog = null;
+  const s = session; session = null;
+  film.pause(); film.removeAttribute('src'); film.load();
+  if (s) URL.revokeObjectURL(s.url);
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  stage.classList.remove('open'); $('#lockBtn').disabled = true;
+  $('#st-screen').textContent = 'Curtains closed';
+  setPlaque('Locked', msg || 'The key has been purged from this screen.');
+}
+film.addEventListener('error', () => {
+  if (!session) return;
+  lockScreen('This browser can’t play that video format. Use MP4 (H.264/AAC) or WebM when packing.');
+  showMsg('#screenMsg', 'The film decrypted correctly, but this browser can’t play its video format. Re-export it as MP4 (H.264/AAC) or WebM and pack it again.');
+});
+$('#lockBtn').onclick = () => lockScreen('Screening stopped. The key has been purged from this screen.');
+
+async function startScreening(){
+  if (running) return;
+  running = true; $('#startBtn').disabled = true;
+  try {
+    if (session) lockScreen();
+    $('#checks').replaceChildren(); showMsg('#screenMsg', '');
+    const movieFile = $('#movieFile').files[0], kdmFile = $('#kdmFile').files[0];
+    const theatre = await store.get('theatre');
+    if (!theatre) return showMsg('#screenMsg', 'This browser has no screen certificate. Create one in the Theatre tab first.');
+    if (!movieFile || !kdmFile) return showMsg('#screenMsg', 'Choose both a movie package and a KDM file.');
+    setPlaque('Checking the key…', 'The server is verifying the KDM.');
+    const ctx = {};
+
+    if (!await runCheck('Read movie package', async () => {
+      const r = await readHeader(movieFile); ctx.header = r.header; ctx.dataOffset = r.dataOffset;
+      return `“${r.header.title}” · ${fmtBytes(r.header.size)}`;
+    })) return fail();
+
+    if (!await runCheck('Read KDM', async () => {
+      ctx.kdm = parseKdm(await kdmFile.text());
+      return `For “${ctx.kdm.title}” · issued ${fmtDate(ctx.kdm.issueDate)}`;
+    })) return fail();
+
+    if (!await runCheck('Verify studio signature', async () => {
+      const v = await verifyKdm(ctx.kdm);
+      if (!v.ok) throw new Error('The KDM was changed after the studio signed it, or it is damaged. Ask the studio for a new KDM.');
+      ctx.signerThumb = v.thumb;
+      return `Signed by ${ctx.kdm.signerName} · ${groupHex(v.thumb.slice(0, 16))}`;
+    })) return fail();
+
+    if (!await runCheck('Check the studio is trusted', async () => {
+      const list = (await store.get('trusted')) || [];
+      if (!list.some(x => x.thumb === ctx.signerThumb)) {
+        const err = new Error(`“${ctx.kdm.signerName}” is not on this theatre’s trusted list yet.`);
+        err.action = { label: `Trust ${ctx.kdm.signerName}`, run: async () => {
+          list.push({ thumb: ctx.signerThumb, name: ctx.kdm.signerName, added: new Date().toISOString() });
+          await store.set('trusted', list); await refreshAll(); running = false; startScreening();
+        } };
+        throw err;
+      }
+      return 'On the trusted list';
+    })) return fail();
+
+    if (!await runCheck('Check the KDM is for this screen', async () => {
+      if (ctx.kdm.recipientThumb !== theatre.thumb)
+        throw new Error(`This KDM is locked to “${ctx.kdm.recipientName}”, not to this screen (“${theatre.name}”). Ask the studio to issue one using this screen’s certificate.`);
+      return theatre.name;
+    })) return fail();
+
+    if (!await runCheck('Check the KDM matches this movie', async () => {
+      if (ctx.kdm.cplId !== ctx.header.cplId || ctx.kdm.keyId !== ctx.header.keyId)
+        throw new Error(`This KDM unlocks “${ctx.kdm.title}”, not “${ctx.header.title}”.`);
+      return 'Composition ID matches';
+    })) return fail();
+
+    if (!await runCheck('Check the validity window', async () => {
+      const nb = Date.parse(ctx.kdm.notBefore), na = Date.parse(ctx.kdm.notAfter), now = Date.now();
+      if (isNaN(nb) || isNaN(na)) throw new Error('The KDM’s dates could not be read.');
+      if (now < nb) throw new Error(`Too early. This KDM starts on ${fmtDate(ctx.kdm.notBefore)}.`);
+      if (now > na) throw new Error(`Expired on ${fmtDate(ctx.kdm.notAfter)}. Ask the studio for a new KDM.`);
+      ctx.notAfterMs = na;
+      return `Valid until ${fmtDate(ctx.kdm.notAfter)}`;
+    })) return fail();
+
+    if (!await runCheck('Unlock the content key', async () => {
+      ctx.rawKey = await unwrapKey(ctx.kdm, theatre.privateKey);
+      return 'Opened with this screen’s private key';
+    })) return fail();
+
+    if (!await runCheck('Decrypt the movie', async c => {
+      c.set('0%'); let last = -1;
+      const blob = await unpackMovie(movieFile, ctx.header, ctx.dataOffset, ctx.rawKey, p => {
+        const pct = Math.floor(p * 100); if (pct !== last) { last = pct; c.set(pct + '%'); }
+      });
+      ctx.rawKey.fill(0); ctx.blob = blob;
+      return 'All blocks verified';
+    })) return fail();
+
+    const url = URL.createObjectURL(ctx.blob); ctx.blob = null;
+    session = { url, notAfterMs: ctx.notAfterMs };
+    film.src = url;
+    stage.classList.add('open'); $('#lockBtn').disabled = false;
+    $('#st-screen').textContent = 'Now showing';
+    setPlaque('Now showing', ctx.header.title);
+    film.play().catch(() => {});
+    watchdog = setInterval(() => {
+      if (session && Date.now() > session.notAfterMs) {
+        lockScreen('The KDM expired, so the key was purged and the screening stopped.');
+        showMsg('#screenMsg', 'The KDM’s validity window ended. The screen purged the key and stopped playback.');
+      }
+    }, 1000);
+  } finally { running = false; $('#startBtn').disabled = false; }
+
+  function fail(){ setPlaque('Curtains closed', 'The key was not released. See the checks below.'); }
+}
+$('#startBtn').onclick = startScreening;
+
+/* ================= boot ================= */
+(function boot(){
+  if (!window.crypto || !crypto.subtle) {
+    $('#banner').hidden = false;
+    $('#banner').textContent = 'This browser has no Web Crypto support. Open this file in a current Chrome, Edge or Firefox.';
+  }
+  const tick = () => $$('.clock').forEach(e => e.textContent = new Date().toLocaleTimeString());
+  tick(); setInterval(tick, 1000);
+  refreshAll();
+})();
+</script>
+</body>
+</html>
